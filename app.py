@@ -2,8 +2,10 @@ from flask import Flask, request, jsonify
 import onnxruntime as ort
 from PIL import Image
 import numpy as np
-import io
+from io import BytesIO
 from flask_cors import CORS
+import base64
+
 
 
 app = Flask(__name__)
@@ -28,6 +30,12 @@ def preprocess_image(image):
     return image
 
 
+
+def image_to_base64(image):
+    buffered = BytesIO()
+    image.save(buffered, format="PNG")  # Enregistrer l'image dans un buffer en format PNG
+    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")  # Convertir en base64
+    return img_str
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -67,7 +75,11 @@ def predict():
 
         print("Classe prédite :", predicted_label)
 
-        return jsonify({'prediction': predicted_label})
+        # Convertir l'image prétraitée en base64 pour l'envoyer au frontend
+        preprocessed_image_pil = Image.fromarray(((preprocessed_image[0][0] + 0.5) * 255).astype(np.uint8))  # Reconvertir en image PIL
+        img_base64 = image_to_base64(preprocessed_image_pil)
+
+        return jsonify({'prediction': predicted_label, 'image': img_base64})
     
     except Exception as e:
         print("Erreur :", str(e))
